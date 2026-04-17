@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão Financeira</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh;padding:20px}
+  .container{max-width:820px;margin:0 auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  h1{font-size:20px;font-weight:600;margin-bottom:20px;color:#1a1a1a}
+  .tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px}
+  .tab{padding:5px 12px;border-radius:8px;border:1px solid #ddd;background:transparent;cursor:pointer;font-size:12px;color:#666;transition:all .15s}
+  .tab.active{background:#f0f0eb;color:#1a1a1a;font-weight:500;border-color:#bbb}
+  .tab:hover{background:#f5f5f0}
+  .alert-neg{background:#fff0f0;color:#c0392b;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px;border:1px solid #fcc}
+  .alert-pos{background:#f0fff4;color:#1a6b3c;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px;border:1px solid #b2dfcc}
+  .caixa-input{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .caixa-input label{font-size:12px;color:#666;white-space:nowrap}
+  .caixa-input input{font-size:13px;padding:5px 9px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;width:140px}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .metric{background:#f5f5f0;border-radius:8px;padding:12px 14px}
+  .mlabel{font-size:12px;color:#888;margin-bottom:4px}
+  .mval{font-size:19px;font-weight:600}
+  .pos{color:#1a6b3c}
+  .neg{color:#c0392b}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;font-size:12px;color:#888}
+  .legend span{display:flex;align-items:center;gap:4px}
+  .legend-dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+  .chart-wrap{position:relative;width:100%;height:210px;margin-bottom:16px}
+  .stitle{font-size:11px;font-weight:600;color:#888;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:center}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-size:13px;border-bottom:1px solid #f0f0eb}
+  .row:last-child{border-bottom:none}
+  .badge{font-size:10px;padding:2px 7px;border-radius:20px;margin:0 8px}
+  .bf{background:#e8f4fd;color:#1565a0}
+  .bv{background:#fff8e1;color:#8a6200}
+  .pago-btn{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;margin-left:8px;flex-shrink:0;cursor:pointer;border:none;font-weight:700}
+  .ps{background:#e8f5e9;color:#1a6b3c}
+  .pn{background:#ffebee;color:#c0392b}
+  .del{background:none;border:none;cursor:pointer;color:#bbb;font-size:16px;margin-left:6px;padding:0 3px;line-height:1;transition:color .15s}
+  .del:hover{color:#c0392b}
+  .toggle-form{font-size:11px;padding:3px 10px;border-radius:8px;border:1px solid #ddd;background:transparent;cursor:pointer;color:#666;transition:all .15s}
+  .toggle-form:hover{background:#f5f5f0}
+  .add-form{border:1px solid #e8e8e8;border-radius:8px;padding:12px;margin-top:8px;background:#fafaf8}
+  .add-form input,.add-form select{font-size:13px;padding:6px 9px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;width:100%;margin-bottom:8px}
+  .add-form .row-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .btn-cancel{font-size:12px;padding:6px 14px;border-radius:8px;border:1px solid #ddd;background:transparent;cursor:pointer;color:#666}
+  .btn-save{font-size:12px;padding:6px 16px;border-radius:8px;border:1px solid #1a6b3c;background:#e8f5e9;cursor:pointer;color:#1a6b3c;font-weight:600}
+  .btn-save:hover{background:#d4edda}
+  .total-row{font-weight:600;background:#fafaf8}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Gestão Financeira Mensal</h1>
+  <div class="tabs" id="tabs"></div>
+  <div id="alert-box"></div>
+  <div class="caixa-input">
+    <label>Caixa mensal (R$):</label>
+    <input type="number" id="caixa-edit" step="0.01" onchange="updateCaixa(this.value)">
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="legend">
+    <span><span class="legend-dot" style="background:#1D9E75"></span>Caixa</span>
+    <span><span class="legend-dot" style="background:#D85A30"></span>Despesas</span>
+    <span><span class="legend-dot" style="background:#378ADD"></span>Saldo</span>
+  </div>
+  <div class="chart-wrap"><canvas id="barChart" role="img" aria-label="Gráfico comparativo mensal">Gráfico de caixa, despesas e saldo por mês.</canvas></div>
+  <div id="receitas-section"></div>
+  <div id="despesas-section"></div>
+</div>
+
+<script>
+const novDespesas=[
+  {nome:"Internet",valor:199.9,tipo:"fixa",pago:false},
+  {nome:"Energia elétrica",valor:517,tipo:"fixa",pago:false},
+  {nome:"Claro",valor:49.9,tipo:"fixa",pago:false},
+  {nome:"Nubank",valor:80.35,tipo:"fixa",pago:false},
+  {nome:"Parcela moto",valor:440,tipo:"fixa",pago:false},
+  {nome:"Rastreador",valor:59.9,tipo:"fixa",pago:false},
+  {nome:"Will Bank",valor:116.29,tipo:"fixa",pago:false},
+  {nome:"Geru",valor:298.14,tipo:"fixa",pago:false},
+  {nome:"MEI",valor:86.05,tipo:"fixa",pago:false}
+];
+const novReceitas=[
+  {nome:"M Tech",valor:350},
+  {nome:"RML Advogados",valor:700},
+  {nome:"CMX Tecnologia MKT",valor:2000},
+  {nome:"CMX Tecnologia Venda",valor:1500}
+];
+function cp(x){return JSON.parse(JSON.stringify(x))}
+
+const DATA={
+  "Março":{caixa:4550,despesas:[
+    {nome:"Internet",valor:199.9,tipo:"fixa",pago:true},{nome:"Energia elétrica",valor:307.66,tipo:"fixa",pago:true},
+    {nome:"Claro",valor:60.88,tipo:"fixa",pago:true},{nome:"Nubank",valor:80.35,tipo:"fixa",pago:true},
+    {nome:"Parcela moto",valor:444.17,tipo:"fixa",pago:true},{nome:"Rastreador",valor:59.9,tipo:"fixa",pago:true},
+    {nome:"MC pago",valor:500,tipo:"fixa",pago:true},{nome:"Will Bank",valor:116.29,tipo:"fixa",pago:true},
+    {nome:"Geru",valor:298.14,tipo:"fixa",pago:true},{nome:"Madrinha",valor:150,tipo:"variável",pago:true},
+    {nome:"MEI",valor:86.05,tipo:"fixa",pago:true},{nome:"Gazin Nagila",valor:2581,tipo:"variável",pago:true}
+  ],receitas:[
+    {nome:"M Tech",valor:350},{nome:"RML Advogados",valor:700},
+    {nome:"CMX Tecnologia MKT",valor:2000},{nome:"CMX Tecnologia Venda",valor:1500}
+  ]},
+  "Abril":{caixa:7708,despesas:[
+    {nome:"Jeito",valor:607.74,tipo:"variável",pago:true},{nome:"Internet",valor:199.9,tipo:"fixa",pago:true},
+    {nome:"Energia elétrica",valor:388.26,tipo:"fixa",pago:true},{nome:"Caixa Winy",valor:345.15,tipo:"fixa",pago:true},
+    {nome:"Claro",valor:59.89,tipo:"fixa",pago:true},{nome:"Nubank",valor:80.35,tipo:"fixa",pago:true},
+    {nome:"Parcela moto",valor:452.86,tipo:"fixa",pago:true},{nome:"Rastreador",valor:59.9,tipo:"fixa",pago:true},
+    {nome:"Marc pago",valor:500,tipo:"fixa",pago:true},{nome:"Will Bank",valor:116.29,tipo:"fixa",pago:true},
+    {nome:"Geru",valor:298.14,tipo:"fixa",pago:false},{nome:"Brasil Nagila",valor:1292.39,tipo:"variável",pago:true},
+    {nome:"Caixa Nagila",valor:1257.88,tipo:"variável",pago:true},{nome:"MC pago Nagila",valor:813.04,tipo:"variável",pago:true},
+    {nome:"MEI",valor:86.05,tipo:"fixa",pago:true},{nome:"Pai",valor:1000,tipo:"variável",pago:true}
+  ],receitas:[
+    {nome:"Comissão CMX",valor:158},{nome:"M Tech",valor:350},{nome:"RML Advogados",valor:700},
+    {nome:"CMX Tecnologia MKT",valor:2000},{nome:"CMX Tecnologia Venda",valor:1500},{nome:"Outros",valor:3000}
+  ]},
+  "Maio":{caixa:4550,despesas:[
+    {nome:"Internet",valor:199.9,tipo:"fixa",pago:false},{nome:"Energia elétrica",valor:400,tipo:"fixa",pago:false},
+    {nome:"Caixa Winy",valor:334.5,tipo:"fixa",pago:false},{nome:"Claro",valor:59.89,tipo:"fixa",pago:false},
+    {nome:"Nubank",valor:80.35,tipo:"fixa",pago:false},{nome:"Parcela moto",valor:452.86,tipo:"fixa",pago:false},
+    {nome:"Rastreador",valor:59.9,tipo:"fixa",pago:false},{nome:"Caixa meu",valor:601,tipo:"fixa",pago:false},
+    {nome:"Will Bank",valor:116.29,tipo:"fixa",pago:false},{nome:"Geru",valor:298.14,tipo:"fixa",pago:false},
+    {nome:"Brasil Nagila",valor:1292.39,tipo:"variável",pago:false},{nome:"Caixa Nagila",valor:937.85,tipo:"variável",pago:false},
+    {nome:"MC meu",valor:500,tipo:"variável",pago:false},{nome:"MEI",valor:86.05,tipo:"fixa",pago:false},
+    {nome:"Pai",valor:1000,tipo:"variável",pago:false}
+  ],receitas:[
+    {nome:"M Tech",valor:350},{nome:"RML Advogados",valor:700},
+    {nome:"CMX Tecnologia MKT",valor:2000},{nome:"CMX Tecnologia Venda",valor:1500}
+  ]},
+  "Junho":{caixa:4950,despesas:[
+    {nome:"Internet",valor:199.9,tipo:"fixa",pago:false},{nome:"Energia elétrica",valor:517,tipo:"fixa",pago:false},
+    {nome:"Claro",valor:49.9,tipo:"fixa",pago:false},{nome:"Nubank",valor:80.35,tipo:"fixa",pago:false},
+    {nome:"Parcela moto",valor:440,tipo:"fixa",pago:false},{nome:"Rastreador",valor:59.9,tipo:"fixa",pago:false},
+    {nome:"Will Bank",valor:116.29,tipo:"fixa",pago:false},{nome:"Geru",valor:298.14,tipo:"fixa",pago:false},
+    {nome:"Brasil Nagila",valor:1292.39,tipo:"variável",pago:false},{nome:"Caixa Nagila",valor:937.86,tipo:"variável",pago:false},
+    {nome:"MEI",valor:86.05,tipo:"fixa",pago:false},{nome:"Gran Via",valor:400,tipo:"variável",pago:false}
+  ],receitas:[
+    {nome:"M Tech",valor:350},{nome:"RML Advogados",valor:700},
+    {nome:"CMX Tecnologia MKT",valor:2000},{nome:"CMX Tecnologia Venda",valor:1500}
+  ]},
+  "Julho":{caixa:4550,despesas:[
+    {nome:"Internet",valor:199.9,tipo:"fixa",pago:false},{nome:"Energia elétrica",valor:517,tipo:"fixa",pago:false},
+    {nome:"Claro",valor:49.9,tipo:"fixa",pago:false},{nome:"Nubank",valor:80.35,tipo:"fixa",pago:false},
+    {nome:"Parcela moto",valor:440,tipo:"fixa",pago:false},{nome:"Rastreador",valor:59.9,tipo:"fixa",pago:false},
+    {nome:"Will Bank",valor:116.29,tipo:"fixa",pago:false},{nome:"Geru",valor:298.14,tipo:"fixa",pago:false},
+    {nome:"Caixa Nagila",valor:937.86,tipo:"variável",pago:false},{nome:"MEI",valor:86.05,tipo:"fixa",pago:false}
+  ],receitas:[
+    {nome:"M Tech",valor:350},{nome:"RML Advogados",valor:700},
+    {nome:"CMX Tecnologia MKT",valor:2000},{nome:"CMX Tecnologia Venda",valor:1500}
+  ]},
+  "Agosto":{caixa:4550,despesas:[
+    {nome:"Internet",valor:199.9,tipo:"fixa",pago:false},{nome:"Energia elétrica",valor:517,tipo:"fixa",pago:false},
+    {nome:"Claro",valor:49.9,tipo:"fixa",pago:false},{nome:"Nubank",valor:80.35,tipo:"fixa",pago:false},
+    {nome:"Parcela moto",valor:440,tipo:"fixa",pago:false},{nome:"Rastreador",valor:59.9,tipo:"fixa",pago:false},
+    {nome:"Will Bank",valor:116.29,tipo:"fixa",pago:false},{nome:"Geru",valor:298.14,tipo:"fixa",pago:false},
+    {nome:"MEI",valor:86.05,tipo:"fixa",pago:false}
+  ],receitas:[
+    {nome:"M Tech",valor:350},{nome:"RML Advogados",valor:700},
+    {nome:"CMX Tecnologia MKT",valor:2000},{nome:"CMX Tecnologia Venda",valor:1500}
+  ]},
+  "Setembro":{caixa:4550,despesas:cp(novDespesas),receitas:cp(novReceitas)},
+  "Outubro":{caixa:4550,despesas:cp(novDespesas),receitas:cp(novReceitas)},
+  "Novembro":{caixa:4550,despesas:cp(novDespesas),receitas:cp(novReceitas)},
+  "Dezembro":{caixa:4550,despesas:cp(novDespesas),receitas:cp(novReceitas)}
+};
+
+const meses=Object.keys(DATA);
+let mes="Março";
+let chart=null;
+let showAddRec=false;
+let showAddDesp=false;
+
+function fmt(v){return'R$ '+parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+function renderTabs(){
+  document.getElementById('tabs').innerHTML=meses.map(m=>`<button class="tab${m===mes?' active':''}" onclick="selMes('${m}')">${m}</button>`).join('');
+}
+
+function selMes(m){mes=m;showAddRec=false;showAddDesp=false;render()}
+
+function updateCaixa(v){DATA[mes].caixa=parseFloat(v)||0;renderMetrics();renderChart()}
+
+function togglePago(i){DATA[mes].despesas[i].pago=!DATA[mes].despesas[i].pago;render()}
+
+function delReceita(i){DATA[mes].receitas.splice(i,1);render()}
+function delDespesa(i){DATA[mes].despesas.splice(i,1);render()}
+
+function addReceita(){
+  const n=document.getElementById('rn').value.trim();
+  const v=parseFloat(document.getElementById('rv').value);
+  if(!n||isNaN(v)||v<=0)return;
+  DATA[mes].receitas.push({nome:n,valor:v});
+  showAddRec=false;render();
+}
+
+function addDespesa(){
+  const n=document.getElementById('dn').value.trim();
+  const v=parseFloat(document.getElementById('dv').value);
+  const t=document.getElementById('dt').value;
+  if(!n||isNaN(v)||v<=0)return;
+  DATA[mes].despesas.push({nome:n,valor:v,tipo:t,pago:false});
+  showAddDesp=false;render();
+}
+
+function renderMetrics(){
+  const d=DATA[mes];
+  const td=d.despesas.reduce((s,x)=>s+x.valor,0);
+  const saldo=d.caixa-td;
+  const pend=d.despesas.filter(x=>!x.pago).reduce((s,x)=>s+x.valor,0);
+  const alertEl=document.getElementById('alert-box');
+  alertEl.innerHTML=saldo<0
+    ?`<div class="alert-neg">Atenção: saldo negativo de ${fmt(Math.abs(saldo))} em ${mes}</div>`
+    :`<div class="alert-pos">Saldo positivo de ${fmt(saldo)} em ${mes}</div>`;
+  document.getElementById('caixa-edit').value=d.caixa;
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="mlabel">Caixa mensal</div><div class="mval">${fmt(d.caixa)}</div></div>
+    <div class="metric"><div class="mlabel">Total despesas</div><div class="mval neg">${fmt(td)}</div></div>
+    <div class="metric"><div class="mlabel">Saldo esperado</div><div class="mval ${saldo>=0?'pos':'neg'}">${fmt(saldo)}</div></div>
+    <div class="metric"><div class="mlabel">Pendente pagar</div><div class="mval ${pend>0?'neg':'pos'}">${fmt(pend)}</div></div>
+  `;
+}
+
+function renderReceitas(){
+  const d=DATA[mes];
+  const tr=d.receitas.reduce((s,x)=>s+x.valor,0);
+  document.getElementById('receitas-section').innerHTML=`
+    <div class="stitle">Receitas <button class="toggle-form" onclick="showAddRec=!showAddRec;render()">+ adicionar</button></div>
+    ${d.receitas.map((r,i)=>`
+      <div class="row">
+        <span style="flex:1">${r.nome}</span>
+        <span style="font-weight:600;color:#1a6b3c">${fmt(r.valor)}</span>
+        <button class="del" onclick="delReceita(${i})">×</button>
+      </div>`).join('')}
+    <div class="row total-row"><span>Total receitas</span><span style="color:#1a6b3c">${fmt(tr)}</span></div>
+    ${showAddRec?`<div class="add-form">
+      <div class="row-inputs">
+        <input id="rn" type="text" placeholder="Nome da receita">
+        <input id="rv" type="number" placeholder="Valor (R$)" step="0.01" min="0">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-cancel" onclick="showAddRec=false;render()">Cancelar</button>
+        <button class="btn-save" onclick="addReceita()">Salvar</button>
+      </div>
+    </div>`:''}
+  `;
+}
+
+function renderDespesas(){
+  const d=DATA[mes];
+  const td=d.despesas.reduce((s,x)=>s+x.valor,0);
+  document.getElementById('despesas-section').innerHTML=`
+    <div class="stitle">Despesas <button class="toggle-form" onclick="showAddDesp=!showAddDesp;render()">+ adicionar</button></div>
+    ${d.despesas.map((r,i)=>`
+      <div class="row">
+        <span style="flex:1">${r.nome}</span>
+        <span class="badge ${r.tipo==='fixa'?'bf':'bv'}">${r.tipo}</span>
+        <span style="font-weight:600;min-width:80px;text-align:right">${fmt(r.valor)}</span>
+        <button class="pago-btn ${r.pago?'ps':'pn'}" onclick="togglePago(${i})" title="${r.pago?'Pago':'Pendente'}">${r.pago?'✓':'!'}</button>
+        <button class="del" onclick="delDespesa(${i})">×</button>
+      </div>`).join('')}
+    <div class="row total-row"><span>Total despesas</span><span style="color:#c0392b">${fmt(td)}</span></div>
+    ${showAddDesp?`<div class="add-form">
+      <div class="row-inputs">
+        <input id="dn" type="text" placeholder="Nome da despesa">
+        <input id="dv" type="number" placeholder="Valor (R$)" step="0.01" min="0">
+      </div>
+      <select id="dt"><option value="fixa">Fixa</option><option value="variável">Variável</option></select>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn-cancel" onclick="showAddDesp=false;render()">Cancelar</button>
+        <button class="btn-save" onclick="addDespesa()">Salvar</button>
+      </div>
+    </div>`:''}
+  `;
+}
+
+function renderChart(){
+  const despesas=meses.map(m=>parseFloat(DATA[m].despesas.reduce((s,x)=>s+x.valor,0).toFixed(2)));
+  const caixas=meses.map(m=>DATA[m].caixa);
+  const saldos=meses.map(m=>parseFloat((DATA[m].caixa-DATA[m].despesas.reduce((s,x)=>s+x.valor,0)).toFixed(2)));
+  if(chart)chart.destroy();
+  chart=new Chart(document.getElementById('barChart'),{
+    type:'bar',
+    data:{
+      labels:meses.map(m=>m.substring(0,3)),
+      datasets:[
+        {label:'Caixa',data:caixas,backgroundColor:'#1D9E75',borderRadius:4},
+        {label:'Despesas',data:despesas,backgroundColor:'#D85A30',borderRadius:4},
+        {label:'Saldo',data:saldos,type:'line',borderColor:'#378ADD',backgroundColor:'#378ADD',pointBackgroundColor:'#378ADD',fill:false,tension:0.3,borderDash:[4,3]}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.raw)}}},
+      scales:{
+        x:{ticks:{font:{size:11},autoSkip:false,maxRotation:0},grid:{display:false}},
+        y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(1)+'k'},grid:{color:'rgba(0,0,0,0.05)'}}
+      }
+    }
+  });
+}
+
+function render(){renderTabs();renderMetrics();renderChart();renderReceitas();renderDespesas()}
+render();
+</script>
+</body>
+</html>
